@@ -1,5 +1,6 @@
 package ru.otus.cryptography.hw1;
 
+// `@Data` в `KeyLetter` — хорошо, но подумайте, нужны ли действительно все геттеры, сеттеры, `equals`, `hashCode`, `toString`. Возможно, достаточно `@Getter` и `@Setter` для `count`, а `letter` можно сделать `final`.
 import lombok.Data;
 
 import java.util.ArrayList;
@@ -10,6 +11,9 @@ import java.util.TreeSet;
 
 public class Decoder {
     private final Map<Integer, Key> keys = new HashMap<>();
+// Можно использовать ArrayList для простоты доступа по индексу. В целом, старайтесь минимизировать использование HashMap, если можете использовать более простой и быстрый ArrayList. Например, так:
+//private final List<Key> keys = new ArrayList<>();
+//Можно использовать `List<Key>` вместо `Map<Integer, Key>`. Это упрощает код и делает его более эффективным в данном контексте.
 
     public void findKeys(Text ciphertext1, Text ciphertext2) {
         var xored = ciphertext1.xor(ciphertext2);
@@ -25,10 +29,35 @@ public class Decoder {
         }
     }
 
+// Вложенный цикл в findKeys не нужен. Метод `xored.getLetters()` возвращает список. Пройдясь по нему один раз, можно сразу определить, является ли буква английской, и добавить ключ. Можно избежать лишних обращений к элементам списка по индексу.
+// Что произойдет, если `ciphertext1` и `ciphertext2` будут разных размеров? Добавил проверку на это.
+// Имена переменных типа `xl`, `cl1`, `cl2` неинформативны. Лучше использовать более описательные имена, например, `xoredLetter`, `ciphertext1Letter`, `ciphertext2Letter` и т.д.
+//    public void findKeys(Text ciphertext1, Text ciphertext2) {
+//        if (ciphertext1.size() != ciphertext2.size()) {
+//            throw new IllegalArgumentException("Ciphertexts must have the same size");
+//        }
+//        List<Text.Letter> xoredLetters = ciphertext1.xor(ciphertext2).getLetters();
+//        keys.clear(); // Очищаем ключи перед новым вычислением
+
+// keys.addAll(Collections.nCopies(xoredLetters.size(), new Key())); // Создаем ключи заранее
+
+//        for (int i = 0; i < xoredLetters.size(); i++) {
+//            Text.Letter xoredLetter = xoredLetters.get(i);
+//            if (xoredLetter.isEngLetter()) {
+//                Text.Letter invertedLetter = xoredLetter.invertCase();
+//                keys.get(i).addLetter(ciphertext1.getLetter(i).xor(invertedLetter));
+//                keys.get(i).addLetter(ciphertext2.getLetter(i).xor(invertedLetter));
+//            }
+//        }
+//        sortKeys();
+//    }
+// Для `sortKeys` тоже может потребоваться небольшая модификация..
+    
     public void sortKeys() {
         keys.forEach((pos, key) -> key.sortKeys());
     }
 
+// Создание списка `keyLetters` и затем объекта `Text` - избыточно. Можно напрямую создавать `Text` объект, например используя Stream API, что будет эффективнее.
     public Text decrypt(Text ciphertext) {
         var keyLetters = new ArrayList<Text.Letter>(ciphertext.size());
         for (int i = 0; i < ciphertext.size(); i++) {
@@ -39,6 +68,7 @@ public class Decoder {
         return ciphertext.xor(key);
     }
 
+// Проверка `!keys.containsKey(position)` выполняется каждый раз. Лучше создать `Key` объект сразу для всех позиций, а затем заполнять его. Это избавит от поиска в `HashMap` внутри `addKey`.
     private void addKey(int position, Text.Letter letter) {
         if (!keys.containsKey(position)) {
             keys.put(position, new Key());
@@ -63,6 +93,7 @@ public class Decoder {
             keyLettersMap.forEach((letter, keyLetter) -> keyLettersTreeSet.add(keyLetter));
         }
 
+// Возвращение `null` не очень удобно. Лучше предусмотреть какое-то значение, хотя бы, пробел, или лучше бросить исключение, если ключ не найден.
         private Text.Letter getLetter() {
             return keyLettersTreeSet.stream().findFirst().map(KeyLetter::getLetter).orElse(null);
         }
@@ -77,6 +108,7 @@ public class Decoder {
                 this.count = count;
             }
 
+// Кажется, что логику сравнения можно упростить.
             @Override
             public int compareTo(KeyLetter o) {
                 var i = (o.count) - (count);
